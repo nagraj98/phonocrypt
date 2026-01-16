@@ -1,0 +1,20 @@
+# Phonetic conversion - primary library for IPA conversion
+phonemizer==3.2.1
+
+# Alternative/fallback phonetic library
+epitran==1.24
+
+# Data processing
+pandas==2.2.0
+
+# Scientific computing
+numpy==1.26.4
+
+# Testing
+pytest==8.0.0
+pytest-cov==4.1.0
+
+# Code quality
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
