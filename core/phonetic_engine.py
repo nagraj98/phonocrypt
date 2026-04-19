@@ -3,30 +3,34 @@ PhonoCrypt Core Phonetic Engine
 ===============================
 
 This module provides the foundational phonetic conversion functionality for PhonoCrypt.
-It converts text to International Phonetic Alphabet (IPA) representation and back.
+It converts text to International Phonetic Alphabet (IPA) representation.
 
 Milestone 1 Deliverables:
+- text_to_ipa(text: str) -> str: Convert text to raw IPA string
+- text_to_words(text: str) -> List[str]: Split text into words
 - text_to_phonemes(text: str) -> List[str]: Convert text to phoneme list
-- phonemes_to_text(phonemes: List[str]) -> str: Convert phonemes back to text
 
 Target accuracy: 95%+ for English text
 """
 
+from enum import Enum
 from typing import List, Optional, Dict
 import re
 import os
+import re
 from dataclasses import dataclass
+
+from core.mappings import IPA_TO_DEVANAGARI, HALANT
 
 # Set espeak-ng library path for macOS Homebrew installations
 # phonemizer needs to find the espeak-ng shared library
 if not os.environ.get('PHONEMIZER_ESPEAK_LIBRARY'):
-    # Common paths for espeak-ng library
     common_lib_paths = [
         '/opt/homebrew/lib/libespeak-ng.dylib',  # macOS Homebrew (Apple Silicon)
         '/usr/local/lib/libespeak-ng.dylib',      # macOS Homebrew (Intel)
         '/usr/lib/x86_64-linux-gnu/libespeak-ng.so',  # Linux (x86_64)
         '/usr/lib/aarch64-linux-gnu/libespeak-ng.so',  # Linux (ARM64)
-        '/usr/lib/libespeak-ng.so',              # Linux (generic)
+        '/usr/lib/libespeak-ng.so',               # Linux (generic)
     ]
     for path in common_lib_paths:
         if os.path.exists(path):
@@ -59,23 +63,29 @@ class PhoneticConfig:
     with_stress: bool = True
 
 
+class Script(Enum):
+    SANSKRIT = "sanskrit"
+    HINDI    = "hindi"
+    MARATHI  = "marathi"  # same as hindi for this purpose
+
+
 class PhoneticEngine:
     """
     Core engine for converting text to phonetic representation and back.
-    
+
     Uses espeak-ng backend via phonemizer library for IPA conversion.
     Provides fallback mechanisms for robustness.
     """
-    
+
     def __init__(self, config: Optional[PhoneticConfig] = None):
         """
         Initialize the phonetic engine.
-        
+
         Args:
             config: Optional configuration for phonetic processing
         """
         self.config = config or PhoneticConfig()
-        
+
         # Initialize backend
         if PHONEMIZER_AVAILABLE and self.config.backend == "espeak":
             try:
@@ -89,77 +99,59 @@ class PhoneticEngine:
                 self.backend_available = False
         else:
             self.backend_available = False
-        
+
         # Initialize epitran as fallback
         self.epitran_translator = None
         if EPITRAN_AVAILABLE:
             try:
                 self.epitran_translator = epitran.Epitran('eng-Latn')
             except Exception as e:
-                print(f"Warning: Could not initialize epitran: {e}")
-        
-        # Create reverse mapping for phoneme-to-text conversion
-        self._build_reverse_mapping()
-    
-    def _build_reverse_mapping(self):
-        """
-        Build a reverse mapping from common IPA phonemes to English letters.
-        This is approximate and used for basic reconstruction.
-        """
-        # Common English phoneme to letter mappings
-        # These are approximations for demonstration purposes
+                print(f"Warning: Could not initialize epitran translator: {e}")
+
+        # Phoneme-to-approximate-letter mapping for reverse conversion
         self.phoneme_to_letter: Dict[str, str] = {
-            # Consonants
-            'p': 'p', 'b': 'b', 't': 't', 'd': 'd', 'k': 'k', 'g': 'g',
-            'f': 'f', 'v': 'v', 'θ': 'th', 'ð': 'th', 's': 's', 'z': 'z',
-            'ʃ': 'sh', 'ʒ': 'zh', 'h': 'h', 'm': 'm', 'n': 'n', 'ŋ': 'ng',
-            'l': 'l', 'r': 'r', 'w': 'w', 'j': 'y',
-            'tʃ': 'ch', 'dʒ': 'j',
-            
-            # Vowels (monophthongs)
-            'i': 'ee', 'ɪ': 'i', 'e': 'e', 'ɛ': 'e', 'æ': 'a',
-            'ɑ': 'a', 'ɒ': 'o', 'ɔ': 'o', 'ʊ': 'u', 'u': 'oo',
-            'ʌ': 'u', 'ə': 'a', 'ɜ': 'er', 'ɚ': 'er',
-            
+            # Vowels
+            'iː': 'ee', 'ɪ': 'i', 'e': 'e', 'ɛ': 'e', 'æ': 'a',
+            'ɑː': 'ah', 'ɒ': 'o', 'ɔː': 'aw', 'ʊ': 'oo', 'uː': 'oo',
+            'ʌ': 'u', 'ɜː': 'er', 'ə': 'e',
             # Diphthongs
             'eɪ': 'ay', 'aɪ': 'i', 'ɔɪ': 'oy', 'aʊ': 'ow', 'oʊ': 'o',
             'ɪə': 'ear', 'ɛə': 'air', 'ʊə': 'oor',
-            
-            # Common symbols
-            ' ': ' ', '.': '.', ',': ',', '!': '!', '?': '?',
-            ':': '', 'ː': '', 'ˈ': '', 'ˌ': '',  # Stress markers (ignored)
+            # Consonants - plosives
+            'p': 'p', 'b': 'b', 't': 't', 'd': 'd', 'k': 'k', 'g': 'g',
+            # Consonants - affricates
+            'tʃ': 'ch', 'dʒ': 'j',
+            # Consonants - fricatives
+            'f': 'f', 'v': 'v', 'θ': 'th', 'ð': 'th',
+            's': 's', 'z': 'z', 'ʃ': 'sh', 'ʒ': 'zh', 'h': 'h',
+            # Consonants - nasals and approximants
+            'm': 'm', 'n': 'n', 'ŋ': 'ng',
+            'l': 'l', 'r': 'r', 'j': 'y', 'w': 'w',
         }
-    
-    def text_to_phonemes(self, text: str) -> List[str]:
+
+    def text_to_ipa(self, text: str) -> str:
         """
-        Convert text to a list of phonemes (IPA representation).
-        
-        This function:
-        1. Normalizes the input text (lowercase, basic cleanup)
-        2. Converts to IPA using espeak-ng backend
-        3. Splits into individual phoneme units
-        4. Returns as a list for further processing
-        
+        Convert text to raw IPA string (step 1).
+
+        This is the first step in the conversion pipeline. It converts
+        normalized text directly to IPA representation without parsing.
+
         Args:
-            text: Input text to convert to phonemes
-            
+            text: Input text to convert
+
         Returns:
-            List of phoneme strings representing the input text
-            
+            IPA string representation
+
         Examples:
             >>> engine = PhoneticEngine()
-            >>> engine.text_to_phonemes("Hello")
-            ['h', 'ə', 'l', 'oʊ']
-            >>> engine.text_to_phonemes("world")
-            ['w', 'ɜː', 'l', 'd']
+            >>> engine.text_to_ipa("hello")
+            'həˈloʊ'
         """
         if not text:
-            return []
-        
-        # Normalize text
+            return ""
+
         normalized_text = self._normalize_text(text)
-        
-        # Convert using primary backend (phonemizer)
+
         if self.backend_available:
             try:
                 ipa = phonemize(
@@ -170,142 +162,302 @@ class PhoneticEngine:
                     preserve_punctuation=self.config.preserve_punctuation,
                     with_stress=self.config.with_stress
                 )
-                
-                # Parse IPA into phoneme list
-                phonemes = self._parse_ipa_to_phonemes(ipa)
-                return phonemes
-                
+                return ipa
             except Exception as e:
                 print(f"Warning: phonemizer failed: {e}, trying fallback")
-        
-        # Fallback to epitran
+
         if self.epitran_translator:
             try:
                 ipa = self.epitran_translator.transliterate(normalized_text)
-                phonemes = self._parse_ipa_to_phonemes(ipa)
-                return phonemes
+                return ipa
             except Exception as e:
                 print(f"Warning: epitran failed: {e}")
-        
-        # Ultimate fallback: character-level representation
-        print("Warning: Using character-level fallback (no phonetic backend available)")
-        return list(normalized_text)
-    
-    def _normalize_text(self, text: str) -> str:
+
+        print("Warning: Using fallback (no phonetic backend available)")
+        return normalized_text
+
+    def text_to_words(self, text: str) -> List[str]:
         """
-        Normalize text before phonetic conversion.
-        
+        Split text into words (step 2).
+
+        This preserves punctuation as separate tokens.
+
         Args:
-            text: Raw input text
-            
+            text: Input text
+
         Returns:
-            Normalized text ready for phonetic conversion
+            List of words and punctuation tokens
+
+        Examples:
+            >>> engine = PhoneticEngine()
+            >>> engine.text_to_words("Hello, world!")
+            ['Hello', ',', 'world', '!']
         """
-        # Convert to lowercase for consistent processing
-        text = text.lower()
-        
-        # Remove excessive whitespace
-        text = re.sub(r'\s+', ' ', text)
-        
-        # Strip leading/trailing whitespace
-        text = text.strip()
-        
-        return text
-    
+        if not text:
+            return []
+        tokens = re.findall(r'\w+|[^\w\s]', text)
+        return tokens
+
+    def text_to_phonemes(self, text: str) -> List[str]:
+        """
+        Convert text to a list of phonemes (step 3 - complete pipeline).
+
+        This function:
+        1. Normalizes the input text (lowercase, basic cleanup)
+        2. Converts to IPA using espeak-ng backend
+        3. Parses IPA into individual phoneme units
+        4. Returns as a list for further processing
+
+        Args:
+            text: Input text to convert to phonemes
+
+        Returns:
+            List of phoneme strings representing the input text
+
+        Examples:
+            >>> engine = PhoneticEngine()
+            >>> engine.text_to_phonemes("Hello")
+            ['h', 'ə', 'ˈ', 'l', 'oʊ']
+            >>> engine.text_to_phonemes("world")
+            ['w', 'ˈ', 'ɜː', 'l', 'd']
+        """
+        if not text:
+            return []
+        ipa = self.text_to_ipa(text)
+        return self._parse_ipa_to_phonemes(ipa)
+
     def _parse_ipa_to_phonemes(self, ipa: str) -> List[str]:
         """
-        Parse IPA string into individual phoneme units.
-        
-        This handles:
-        - Multi-character phonemes (tʃ, dʒ, etc.)
-        - Diphthongs (eɪ, aɪ, etc.)
-        - Stress markers (ˈ, ˌ)
-        - Length markers (ː)
-        
+        Parse an IPA string into a list of individual phoneme units.
+
+        Handles multi-character phonemes (diphthongs, long vowels, affricates)
+        before falling back to single characters.
+
         Args:
             ipa: IPA string from phonemizer
-            
+
         Returns:
             List of phoneme units
         """
         phonemes = []
         i = 0
-        
-        # Multi-character phonemes to check first
+
+        # Multi-character phonemes checked first (longest-match priority)
         multi_char_phonemes = [
-            'tʃ', 'dʒ', 'eɪ', 'aɪ', 'ɔɪ', 'aʊ', 'oʊ', 'ɪə', 'ɛə', 'ʊə',
+            'tʃ', 'dʒ', 'eɪ', 'aɪ', 'ɔɪ', 'aʊ', 'oʊ',
+            'ɪə', 'ɛə', 'ʊə',
             'ɜː', 'iː', 'uː', 'ɑː', 'ɔː'
         ]
-        
+
         while i < len(ipa):
-            # Check for multi-character phonemes
             matched = False
-            for mc_phoneme in multi_char_phonemes:
-                if ipa[i:i+len(mc_phoneme)] == mc_phoneme:
-                    phonemes.append(mc_phoneme)
-                    i += len(mc_phoneme)
+            for mc in multi_char_phonemes:
+                if ipa[i:i + len(mc)] == mc:
+                    phonemes.append(mc)
+                    i += len(mc)
                     matched = True
                     break
-            
             if not matched:
-                # Single character phoneme or symbol
                 char = ipa[i]
-                
-                # Skip stress markers if configured
-                if self.config.strip_stress and char in ['ˈ', 'ˌ']:
+                if self.config.strip_stress and char in ('ˈ', 'ˌ'):
                     i += 1
-                    continue
-                
-                # Handle length marker (combine with previous phoneme)
-                if char == 'ː' and phonemes:
-                    phonemes[-1] = phonemes[-1] + 'ː'
                 else:
                     phonemes.append(char)
-                
-                i += 1
-        
+                    i += 1
+
         return phonemes
-    
+
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize input text for consistent phonetic conversion.
+
+        Converts to lowercase and normalizes whitespace.
+
+        Args:
+            text: Raw input text
+
+        Returns:
+            Normalized text string
+        """
+        text = text.lower()
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
     def phonemes_to_text(self, phonemes: List[str]) -> str:
         """
-        Convert a list of phonemes back to approximate text representation.
-        
-        Note: This is an approximation and may not perfectly reconstruct
-        the original text, especially for homophones. The accuracy depends
-        on the phoneme-to-letter mapping quality.
-        
+        Convert a list of phonemes back to approximate text (reverse conversion).
+
+        Uses a phoneme-to-letter mapping to reconstruct approximate spelling.
+        Note: This is a lossy approximation; perfect reconstruction is not possible.
+
         Args:
-            phonemes: List of IPA phonemes
-            
+            phonemes: List of IPA phoneme strings
+
         Returns:
-            Reconstructed text string
-            
-        Examples:
-            >>> engine = PhoneticEngine()
-            >>> engine.phonemes_to_text(['h', 'ə', 'l', 'oʊ'])
-            'halo'
-            >>> engine.phonemes_to_text(['w', 'ɜː', 'l', 'd'])
-            'werld'
+            Reconstructed approximate text
         """
-        if not phonemes:
-            return ""
-        
-        # Convert each phoneme to its letter representation
-        text_parts = []
+        parts = []
         for phoneme in phonemes:
-            # Clean phoneme (remove stress/length markers for lookup)
-            clean_phoneme = phoneme.replace('ˈ', '').replace('ˌ', '').replace('ː', '')
-            
-            # Look up in mapping
-            if clean_phoneme in self.phoneme_to_letter:
-                text_parts.append(self.phoneme_to_letter[clean_phoneme])
+            clean = phoneme.replace('ˈ', '').replace('ˌ', '').replace('ː', '')
+            if clean in self.phoneme_to_letter:
+                parts.append(self.phoneme_to_letter[clean])
             else:
-                # Unknown phoneme - use as-is or placeholder
-                text_parts.append(phoneme)
+                parts.append(phoneme)
+        return ''.join(parts)
+    
+
+    def ipa_word_to_devanagari_sanskrit(ipa_word: str) -> str:
+        """
+        Sanskrit logic:
+        - Every consonant is written with halant by default
+        - Halant is removed (replaced by matra) only when an explicit vowel follows
+        - ə / ʌ are EXPLICIT vowels — they produce the 'a' matra (ा) or inherent form
+        """
+        HALANT = '्'
         
-        # Join and return
-        reconstructed = ''.join(text_parts)
-        return reconstructed
+        tokens = []
+        i = 0
+        while i < len(ipa_word):
+            matched = False
+            for length in (2, 1):
+                chunk = ipa_word[i:i+length]
+                if chunk in IPA_TO_DEVANAGARI:
+                    entry = IPA_TO_DEVANAGARI[chunk]
+                    if entry != '':
+                        tokens.append((chunk, entry))
+                    i += length
+                    matched = True
+                    break
+            if not matched:
+                i += 1
+
+        result = []
+
+        for idx, (ipa_char, entry) in enumerate(tokens):
+
+            # Look ahead: is the next token a vowel?
+            next_entry = tokens[idx + 1][1] if idx + 1 < len(tokens) else None
+            next_is_vowel = next_entry is not None and (
+                next_entry is None or  # won't hit
+                (isinstance(next_entry, tuple) and next_entry[1] == 'V')
+                or next_entry is None  # inherent schwa
+            )
+            # cleaner lookahead
+            if idx + 1 < len(tokens):
+                ne = tokens[idx + 1][1]
+                next_is_vowel = (ne is None) or (isinstance(ne, tuple) and ne[1] == 'V')
+            else:
+                next_is_vowel = False
+
+            if entry is None:
+                # ə or ʌ — explicit 'a' vowel
+                # Previous consonant already written with halant — replace it with inherent a
+                # i.e. just remove the last halant from result
+                if result and result[-1] == HALANT:
+                    result.pop()   # remove halant → consonant now has inherent 'a'
+                else:
+                    result.append('अ')  # vowel-initial or after another vowel
+            
+            elif entry[1] == 'C':
+                char = entry[0]
+                result.append(char)
+                result.append(HALANT)  # always add halant — vowel will remove it if needed
+
+            elif entry[1] == 'V':
+                standalone = entry[0]
+                matra = entry[2]
+                if result and result[-1] == HALANT:
+                    result.pop()        # remove halant from preceding consonant
+                    result.append(matra)  # attach matra instead
+                else:
+                    result.append(standalone)  # word-initial vowel, no preceding consonant
+
+            print(f"Token: {ipa_char} → {entry}, Result so far: {''.join(result)}")
+
+        return ''.join(result)
+
+
+    
+    def ipa_word_to_devanagari(self, ipa_word: str, script: Script = Script.SANSKRIT, verbose: bool = False) -> str:
+        HALANT = '्'
+
+        tokens = []
+        i = 0
+        while i < len(ipa_word):
+            matched = False
+            for length in (2, 1):
+                chunk = ipa_word[i:i+length]
+                if chunk in IPA_TO_DEVANAGARI:
+                    entry = IPA_TO_DEVANAGARI[chunk]
+                    if entry != '':
+                        tokens.append((chunk, entry))
+                    i += length
+                    matched = True
+                    break
+            if not matched:
+                if verbose:
+                    print(f"Warning: Unrecognized IPA symbol '{ipa_word[i]}' at position {i} in '{ipa_word}'")
+                i += 1
+
+        result = []
+
+        for idx, (ipa_char, entry) in enumerate(tokens):
+
+            if entry is None:
+                # ə or ʌ — explicit 'a' vowel
+                if result and result[-1] == HALANT:
+                    result.pop()   # remove halant → inherent a
+                else:
+                    result.append('अ')
+
+            elif entry[1] == 'C':
+                result.append(entry[0])
+                result.append(HALANT)  # always halant — vowel will pop it if needed
+
+            elif entry[1] == 'V':
+                if result and result[-1] == HALANT:
+                    result.pop()
+                    result.append(entry[2])   # matra
+                else:
+                    result.append(entry[0])   # standalone
+
+            if verbose:
+                print(f"Token: {ipa_char} → {entry}, Result so far: {''.join(result)}")
+
+        # ── The one difference between scripts ──────────────────────────────
+        # Sanskrit: word-final halant stays   → क्विक्
+        # Hindi/Marathi: word-final halant dropped → क्विक
+        if script in (Script.HINDI, Script.MARATHI):
+            if result and result[-1] == HALANT:
+                result.pop()
+
+        return ''.join(result)
+                
+
+    def english_word_to_devanagari(self, word: str, script: Script = Script.SANSKRIT, verbose: bool = False) -> str:
+        """Convert English word to Devanagari script via IPA."""
+        ipa = self.text_to_ipa(word)
+        ipa = self.normalize_ipa(ipa)
+        return self.ipa_word_to_devanagari(ipa, script=script, verbose=verbose)
+    
+
+    def english_to_devanagari(self, text: str, script: Script = Script.SANSKRIT, verbose: bool = False) -> str:
+        """Convert English text to Devanagari script via IPA."""
+        words = self.text_to_words(text)
+        devanagari_words = [self.english_word_to_devanagari(w, script=script, verbose=verbose) for w in words]
+        return ' '.join(devanagari_words)
+
+
+    def normalize_ipa(self, ipa_string: str) -> str:
+        """
+        Normalize IPA string for consistent processing.
+
+        Specifically, convert final 'ŋ' to 'ŋɡ' when it appears at the end of a word. for example for 'song'
+        This is to handle cases where espeak-ng may produce 'ŋ' for the 'ng' sound.
+        """
+
+        ipa_string = re.sub(r'ŋ(\s|$)', r'ŋɡ\1', ipa_string)
+        return ipa_string
 
 
 # Convenience functions for module-level access
@@ -320,53 +472,21 @@ def get_default_engine() -> PhoneticEngine:
     return _default_engine
 
 
+def text_to_ipa(text: str) -> str:
+    """Convert text to raw IPA using the default engine."""
+    return get_default_engine().text_to_ipa(text)
+
+
+def text_to_words(text: str) -> List[str]:
+    """Split text into words using the default engine."""
+    return get_default_engine().text_to_words(text)
+
+
 def text_to_phonemes(text: str) -> List[str]:
-    """
-    Convert text to phonemes using the default engine.
-    
-    Args:
-        text: Input text
-        
-    Returns:
-        List of phoneme strings
-    """
-    engine = get_default_engine()
-    return engine.text_to_phonemes(text)
+    """Convert text to phonemes using the default engine."""
+    return get_default_engine().text_to_phonemes(text)
 
 
 def phonemes_to_text(phonemes: List[str]) -> str:
-    """
-    Convert phonemes to text using the default engine.
-    
-    Args:
-        phonemes: List of phoneme strings
-        
-    Returns:
-        Reconstructed text
-    """
-    engine = get_default_engine()
-    return engine.phonemes_to_text(phonemes)
-
-
-if __name__ == "__main__":
-    # Quick test
-    engine = PhoneticEngine()
-    
-    test_words = [
-        "Hello",
-        "world",
-        "The quick brown fox",
-        "jumps over the lazy dog"
-    ]
-    
-    print("PhonoCrypt Phonetic Engine - Quick Test\n")
-    print("=" * 60)
-    
-    for word in test_words:
-        phonemes = engine.text_to_phonemes(word)
-        reconstructed = engine.phonemes_to_text(phonemes)
-        
-        print(f"\nOriginal:      {word}")
-        print(f"Phonemes:      {phonemes}")
-        print(f"Reconstructed: {reconstructed}")
-        print("-" * 60)
+    """Convert phonemes back to approximate text using the default engine."""
+    return get_default_engine().phonemes_to_text(phonemes)

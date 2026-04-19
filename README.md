@@ -9,13 +9,12 @@ PhonoCrypt is a research-grade tool exploring the intersection of linguistics an
 ### Milestone 1
 - Core phonetic conversion engine (IPA-based)
 - `text_to_phonemes()` - Convert text to phoneme list
-- `phonemes_to_text()` - Reverse conversion
 - Comprehensive unit tests (20+ test cases)
 - 95%+ accuracy target achieved
 
 ---
 
-## Quick Start
+## Setup
 
 ### Prerequisites
 
@@ -64,7 +63,7 @@ python -c "from core import PhoneticEngine; print('✓ PhonoCrypt installed succ
 
 ---
 
-## Usage
+## Quick Start
 
 ### Basic Usage
 

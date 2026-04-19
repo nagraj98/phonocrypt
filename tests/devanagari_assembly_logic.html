@@ -1,0 +1,300 @@
+
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+.wrap{padding:1rem 0;font-size:14px;color:var(--color-text-primary)}
+.section{margin-bottom:2rem}
+.sec-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+.rule-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;justify-content:center;border-radius:6px;font-family:var(--font-mono);font-size:14px;padding:6px 12px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);min-width:48px}
+.chip-c{background:#E6F1FB;color:#0C447C;border-color:#B5D4F4}
+.chip-v{background:#FAEEDA;color:#633806;border-color:#FAC775}
+.chip-m{background:#E1F5EE;color:#085041;border-color:#9FE1CB}
+.chip-h{background:#FCEBEB;color:#791F1F;border-color:#F7C1C1}
+.chip-g{background:#F1EFE8;color:#444441;border-color:#D3D1C7}
+.chip-n{background:#EEEDFE;color:#3C3489;border-color:#CECBF6}
+.arrow{font-size:18px;color:var(--color-text-tertiary)}
+.label{font-size:12px;color:var(--color-text-secondary)}
+.rule-box{border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:12px 14px;background:var(--color-background-secondary);margin-bottom:10px}
+.rule-box .rule-title{font-weight:500;font-size:13px;margin-bottom:6px}
+.rule-box .rule-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+
+/* step-through */
+.stepper{border:0.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden}
+.step-header{display:flex;align-items:center;gap:0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.step-tab{flex:1;padding:8px 4px;text-align:center;font-size:12px;font-weight:500;cursor:pointer;color:var(--color-text-secondary);border-right:0.5px solid var(--color-border-tertiary);transition:background .15s}
+.step-tab:last-child{border-right:none}
+.step-tab.active{background:var(--color-background-info);color:var(--color-text-info)}
+.step-body{padding:14px 16px;min-height:180px}
+.token-row{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+.tok{display:flex;flex-direction:column;align-items:center;gap:3px}
+.tok .ipa{font-family:var(--font-mono);font-size:13px;padding:4px 8px;border-radius:5px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.tok .type{font-size:10px;color:var(--color-text-tertiary)}
+.tok .dev{font-size:18px;padding:4px 8px;border-radius:5px;min-width:32px;text-align:center}
+.c-tok .ipa{background:#E6F1FB;border-color:#B5D4F4;color:#0C447C}
+.c-tok .dev{background:#E6F1FB;border-color:#B5D4F4;color:#0C447C}
+.v-tok .ipa{background:#FAEEDA;border-color:#FAC775;color:#633806}
+.v-tok .dev{background:#E1F5EE;border-color:#9FE1CB;color:#085041}
+.h-tok .dev{background:#FCEBEB;border-color:#F7C1C1;color:#791F1F;font-size:13px}
+.strip-tok .ipa{background:#F1EFE8;border-color:#D3D1C7;color:#888780;text-decoration:line-through}
+.inh-tok .ipa{background:#EEEDFE;border-color:#CECBF6;color:#3C3489}
+.inh-tok .dev{background:#EEEDFE;border-color:#CECBF6;color:#3C3489;font-size:12px}
+.step-desc{font-size:13px;color:var(--color-text-secondary);line-height:1.6;margin-bottom:10px}
+.final-word{font-size:28px;letter-spacing:2px;padding:10px 16px;background:var(--color-background-secondary);border-radius:8px;display:inline-block;margin-top:8px}
+</style>
+
+<div class="wrap">
+
+<!-- Legend -->
+<div class="section">
+  <div class="sec-title">Token types</div>
+  <div class="rule-row">
+    <span class="chip chip-c">क</span><span class="label">Consonant — has inherent अ, needs halant to suppress it</span>
+  </div>
+  <div class="rule-row">
+    <span class="chip chip-v">आ</span><span class="label">Vowel standalone — used at word start or after another vowel</span>
+  </div>
+  <div class="rule-row">
+    <span class="chip chip-m">ा</span><span class="label">Vowel matra — diacritic form, attached to preceding consonant</span>
+  </div>
+  <div class="rule-row">
+    <span class="chip chip-h">्</span><span class="label">Halant — suppresses inherent अ, joins two consonants into a cluster</span>
+  </div>
+  <div class="rule-row">
+    <span class="chip chip-n" style="font-size:11px">∅</span><span class="label">Inherent vowel (ə / ʌ) — write nothing after a consonant, write अ elsewhere</span>
+  </div>
+  <div class="rule-row">
+    <span class="chip chip-g" style="text-decoration:line-through;font-size:11px">ˈ</span><span class="label">Strip — stress markers, not sounds</span>
+  </div>
+</div>
+
+<!-- The 3 rules -->
+<div class="section">
+  <div class="sec-title">The 3 assembly rules</div>
+  <div class="rule-box">
+    <div class="rule-title">Rule 1 — Consonant after consonant → insert halant (्) between them</div>
+    <div class="rule-desc">
+      Two consonants in a row means no vowel between them. Halant tells Devanagari to suppress the inherent अ of the first consonant and merge the two into a conjunct.<br>
+      <strong>k + w</strong> → क + ् + व = <strong>क्व</strong>
+    </div>
+  </div>
+  <div class="rule-box">
+    <div class="rule-title">Rule 2 — Vowel after consonant → use matra form (not standalone)</div>
+    <div class="rule-desc">
+      A vowel following a consonant becomes a diacritic mark on that consonant, not a separate letter.<br>
+      <strong>k + ɪ</strong> → क + ि = <strong>कि</strong> &nbsp;(NOT क + इ)<br>
+      <strong>b + ɑː</strong> → ब + ा = <strong>बा</strong> &nbsp;(NOT ब + आ)
+    </div>
+  </div>
+  <div class="rule-box">
+    <div class="rule-title">Rule 3 — Schwa (ə / ʌ) after consonant → write nothing</div>
+    <div class="rule-desc">
+      The inherent vowel of every Devanagari consonant IS the schwa. Writing अ explicitly would double it.<br>
+      <strong>ð + ə</strong> → द (just द, not दअ)<br>
+      If schwa appears at word start or after another vowel → write अ explicitly.
+    </div>
+  </div>
+</div>
+
+<!-- Step-through example: k w ɪ k -->
+<div class="section">
+  <div class="sec-title">Step-through: "Quick" → kwˈɪk</div>
+  <div class="stepper">
+    <div class="step-header">
+      <div class="step-tab active" onclick="showStep(0)">1. Strip</div>
+      <div class="step-tab" onclick="showStep(1)">2. Tokenize</div>
+      <div class="step-tab" onclick="showStep(2)">3. k</div>
+      <div class="step-tab" onclick="showStep(3)">4. w</div>
+      <div class="step-tab" onclick="showStep(4)">5. ɪ</div>
+      <div class="step-tab" onclick="showStep(5)">6. k</div>
+      <div class="step-tab" onclick="showStep(6)">Result</div>
+    </div>
+    <div class="step-body" id="step-body"></div>
+  </div>
+</div>
+
+<!-- Step-through: brown bɹaʊn -->
+<div class="section">
+  <div class="sec-title">Step-through: "brown" → bɹˈaʊn</div>
+  <div class="stepper">
+    <div class="step-header">
+      <div class="step-tab active" onclick="showStep2(0)">1. Strip</div>
+      <div class="step-tab" onclick="showStep2(1)">2. b</div>
+      <div class="step-tab" onclick="showStep2(2)">3. ɹ</div>
+      <div class="step-tab" onclick="showStep2(3)">4. aʊ</div>
+      <div class="step-tab" onclick="showStep2(4)">5. n</div>
+      <div class="step-tab" onclick="showStep2(5)">Result</div>
+    </div>
+    <div class="step-body" id="step-body2"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const steps = [
+  {
+    desc: "Remove stress markers ˈ and ˌ — they are not sounds, just prosody annotations.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'cons', dev:''},
+      {ipa:'w', cls:'c-tok', type:'cons', dev:''},
+      {ipa:'ˈ', cls:'strip-tok', type:'strip', dev:''},
+      {ipa:'ɪ', cls:'v-tok', type:'vowel', dev:''},
+      {ipa:'k', cls:'c-tok', type:'cons', dev:''},
+    ],
+    built: ''
+  },
+  {
+    desc: "Each IPA symbol is looked up in the mapping table. 2-char sequences checked first (diphthongs, affricates), then single chars.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'consonant', dev:'क'},
+      {ipa:'w', cls:'c-tok', type:'consonant', dev:'व'},
+      {ipa:'ɪ', cls:'v-tok', type:'vowel → matra ि', dev:'इ/ि'},
+      {ipa:'k', cls:'c-tok', type:'consonant', dev:'क'},
+    ],
+    built: ''
+  },
+  {
+    desc: "First token: k → consonant क. prev_was_consonant = FALSE so just write it. Flag → TRUE.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'writing क', dev:'क', highlight:true},
+      {ipa:'w', cls:'c-tok', type:'consonant', dev:'व'},
+      {ipa:'ɪ', cls:'v-tok', type:'vowel', dev:'ि'},
+      {ipa:'k', cls:'c-tok', type:'consonant', dev:'क'},
+    ],
+    built: 'क'
+  },
+  {
+    desc: "Second token: w → consonant व. prev_was_consonant = TRUE → insert halant first (Rule 1), then write व. Flag stays TRUE.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'done', dev:'क'},
+      {ipa:'w', cls:'c-tok', type:'writing ् + व', dev:'व', highlight:true},
+      {ipa:'ɪ', cls:'v-tok', type:'vowel', dev:'ि'},
+      {ipa:'k', cls:'c-tok', type:'consonant', dev:'क'},
+    ],
+    built: 'क्व'
+  },
+  {
+    desc: "Third token: ɪ → vowel. prev_was_consonant = TRUE → use matra form ि (not standalone इ). Rule 2. Flag → FALSE.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'done', dev:'क'},
+      {ipa:'w', cls:'c-tok', type:'done', dev:'व'},
+      {ipa:'ɪ', cls:'v-tok', type:'writing matra ि', dev:'ि', highlight:true},
+      {ipa:'k', cls:'c-tok', type:'consonant', dev:'क'},
+    ],
+    built: 'क्वि'
+  },
+  {
+    desc: "Fourth token: k → consonant. prev_was_consonant = FALSE (previous was a vowel) → no halant needed. Just write क. Flag → TRUE.",
+    tokens: [
+      {ipa:'k', cls:'c-tok', type:'done', dev:'क'},
+      {ipa:'w', cls:'c-tok', type:'done', dev:'व'},
+      {ipa:'ɪ', cls:'v-tok', type:'done', dev:'ि'},
+      {ipa:'k', cls:'c-tok', type:'writing क', dev:'क', highlight:true},
+    ],
+    built: 'क्विक'
+  },
+  {
+    desc: "Done. The flag-based assembler produced the correct conjunct and matra forms automatically.",
+    tokens: [],
+    built: 'क्विक',
+    final: true
+  }
+];
+
+const steps2 = [
+  {
+    desc: "Strip stress marker ˈ from bɹˈaʊn → bɹaʊn. Note: aʊ is a diphthong — the tokenizer must match it as ONE unit (2-char lookup happens before 1-char).",
+    tokens: [
+      {ipa:'b', cls:'c-tok', type:'cons', dev:'ब'},
+      {ipa:'ɹ', cls:'c-tok', type:'cons', dev:'र'},
+      {ipa:'aʊ', cls:'v-tok', type:'diphthong → ाउ', dev:'आउ/ाउ'},
+      {ipa:'n', cls:'c-tok', type:'cons', dev:'न'},
+    ],
+    built: ''
+  },
+  {
+    desc: "b → consonant ब. prev=FALSE → write ब. Flag → TRUE.",
+    tokens: [
+      {ipa:'b', cls:'c-tok', type:'writing ब', dev:'ब', highlight:true},
+      {ipa:'ɹ', cls:'c-tok', type:'cons', dev:'र'},
+      {ipa:'aʊ', cls:'v-tok', type:'diphthong', dev:'ाउ'},
+      {ipa:'n', cls:'c-tok', type:'cons', dev:'न'},
+    ],
+    built: 'ब'
+  },
+  {
+    desc: "ɹ → consonant र. prev=TRUE → insert halant ् first (Rule 1), then write र. Flag stays TRUE.",
+    tokens: [
+      {ipa:'b', cls:'c-tok', type:'done', dev:'ब'},
+      {ipa:'ɹ', cls:'c-tok', type:'writing ् + र', dev:'र', highlight:true},
+      {ipa:'aʊ', cls:'v-tok', type:'diphthong', dev:'ाउ'},
+      {ipa:'n', cls:'c-tok', type:'cons', dev:'न'},
+    ],
+    built: 'ब्र'
+  },
+  {
+    desc: "aʊ → diphthong. prev=TRUE → use matra form ाउ (not standalone आउ). Rule 2. Flag → FALSE.",
+    tokens: [
+      {ipa:'b', cls:'c-tok', type:'done', dev:'ब'},
+      {ipa:'ɹ', cls:'c-tok', type:'done', dev:'र'},
+      {ipa:'aʊ', cls:'v-tok', type:'writing matra ाउ', dev:'ाउ', highlight:true},
+      {ipa:'n', cls:'c-tok', type:'cons', dev:'न'},
+    ],
+    built: 'ब्राउ'
+  },
+  {
+    desc: "n → consonant. prev=FALSE (previous was vowel) → no halant. Write न. Flag → TRUE.",
+    tokens: [
+      {ipa:'b', cls:'c-tok', type:'done', dev:'ब'},
+      {ipa:'ɹ', cls:'c-tok', type:'done', dev:'र'},
+      {ipa:'aʊ', cls:'v-tok', type:'done', dev:'ाउ'},
+      {ipa:'n', cls:'c-tok', type:'writing न', dev:'न', highlight:true},
+    ],
+    built: 'ब्राउन'
+  },
+  {
+    desc: "Done. The diphthong aʊ was caught as a single 2-char unit and correctly rendered as a matra on the preceding ब्र conjunct.",
+    tokens: [],
+    built: 'ब्राउन',
+    final: true
+  }
+];
+
+function renderStep(step, bodyId) {
+  const body = document.getElementById(bodyId);
+  let html = `<div class="step-desc">${step.desc}</div>`;
+  if (step.tokens.length) {
+    html += '<div class="token-row">';
+    step.tokens.forEach(t => {
+      const border = t.highlight ? 'outline:2px solid var(--color-border-info);border-radius:7px;padding:2px' : '';
+      html += `<div class="tok ${t.cls}" style="${border}">
+        <span class="ipa">${t.ipa}</span>
+        <span class="type">${t.type}</span>
+        ${t.dev ? `<span class="dev">${t.dev}</span>` : ''}
+      </div>`;
+    });
+    html += '</div>';
+  }
+  if (step.built) {
+    html += `<div style="margin-top:10px;font-size:12px;color:var(--color-text-secondary)">Built so far:</div>
+             <div class="final-word">${step.built}</div>`;
+  }
+  if (step.final) {
+    html += `<div style="margin-top:8px;font-size:12px;color:var(--color-text-success);font-weight:500">✓ Complete</div>`;
+  }
+  body.innerHTML = html;
+}
+
+function showStep(n) {
+  document.querySelectorAll('.stepper')[0].querySelectorAll('.step-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  renderStep(steps[n], 'step-body');
+}
+function showStep2(n) {
+  document.querySelectorAll('.stepper')[1].querySelectorAll('.step-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  renderStep(steps2[n], 'step-body2');
+}
+
+renderStep(steps[0], 'step-body');
+renderStep(steps2[0], 'step-body2');
+</script>
